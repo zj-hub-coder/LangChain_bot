@@ -1,0 +1,10 @@
+{
+  "k8s_mcp": {
+    "transport": "stdio",
+    "command": "E:/YU_PROJECT/k8s_mcp_server/.venv/Scripts/python.exe",
+    "args": ["E:/YU_PROJECT/k8s_mcp_server/k8s_server.py"]
+  }
+
+   
+  
+}

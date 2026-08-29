@@ -1,0 +1,21 @@
+[project]
+name = "k8s-ops-agent"
+version = "0.1.0"
+description = "面向 SRE 的 Kubernetes 运维助手 Agent（MCP 接入集群 + 内置搜索 + CLI 交互）"
+requires-python = ">=3.10"
+dependencies = [
+    "langchain>=1.0",
+    "langchain-openai>=1.0",
+    "langchain-mcp-adapters>=0.1",
+    "python-dotenv>=1.0",
+    "pydantic-settings>=2.0",
+    "rich>=13.0",
+    "duckduckgo-search>=6.0",
+]
+
+[project.scripts]
+# 安装后可直接 `k8s-ops-agent` 启动 CLI
+k8s-ops-agent = "cli:chat_sync"
+
+[tool.setuptools]
+packages = ["tools"]
