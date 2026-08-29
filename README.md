@@ -2,6 +2,8 @@
 
 面向 SRE 的 Kubernetes 智能运维助手：通过 **MCP 协议**接入已有 K8s MCP Server 查询集群状态，结合 **LangGraph Agent** 编排 LLM 与工具，支持 **CLI** 与 **飞书机器人** 双端交互，实现"一句话完成集群排障"。
 
+本项目是上层 Agent 编排层；底层 K8s MCP Server（把 `kubectl get / describe / logs / events --watch` 封装成只读 MCP 工具）在独立仓库 [k8s-mcp-server](https://github.com/zj-hub-coder/k8s-mcp-server)。
+
 ## 架构
 
 ```
