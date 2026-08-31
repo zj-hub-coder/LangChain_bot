@@ -1,6 +1,8 @@
 """配置管理：从 .env 加载全部运行时配置。
 
-所有配置项均需在 .env 中显式声明，不留硬编码默认值。
+所有配置项均提供默认值，缺失时不会在实例化阶段报错；由 llm_ready /
+lark_ready 两个属性在对应入口做运行时校验，让 CLI 与飞书两端解耦
+（跑 CLI 无需填飞书配置，跑飞书才需要 LARK_* 三项）。
 """
 from functools import lru_cache
 from pathlib import Path
@@ -16,24 +18,26 @@ class Settings(BaseSettings):
         extra="ignore",
     )
 
-    # === LLM 配置（OpenAI 兼容接口）===
-    openai_api_key: str = Field(..., description="API Key")
-    openai_api_base: str = Field(..., description="API Base URL")
-    llm_model: str = Field(..., description="模型名")
-    llm_temperature: float = Field(..., description="温度参数 0-1")
-    llm_max_tokens: int = Field(..., description="最大 token 数")
+    # === LLM 配置（OpenAI 兼容接口，CLI 与飞书均必填）===
+    openai_api_key: str = Field(default="", description="API Key")
+    openai_api_base: str = Field(default="", description="API Base URL")
+    llm_model: str = Field(default="", description="模型名")
+    llm_temperature: float = Field(default=0.7, description="温度参数 0-1")
+    llm_max_tokens: int = Field(default=500, description="最大 token 数")
 
     # === MCP server 配置文件路径 ===
-    mcp_servers_file: str = Field(..., description="MCP server JSON 配置文件路径")
+    mcp_servers_file: str = Field(
+        default="mcp_servers.json", description="MCP server JSON 配置文件路径"
+    )
 
     # === 搜索工具 ===
-    search_provider: str = Field(..., description="搜索工具提供商")
+    search_provider: str = Field(default="duckduckgo", description="搜索工具提供商")
 
-    # === 飞书机器人 ===
-    lark_app_id: str = Field(..., description="飞书 App ID")
-    lark_app_secret: str = Field(..., description="飞书 App Secret")
+    # === 飞书机器人（可选，仅 start_lark.py 需要）===
+    lark_app_id: str = Field(default="", description="飞书 App ID")
+    lark_app_secret: str = Field(default="", description="飞书 App Secret")
     lark_card_update_interval_ms: int = Field(
-        ..., description="卡片流式更新节流间隔（毫秒）"
+        default=800, description="卡片流式更新节流间隔（毫秒）"
     )
 
     @property

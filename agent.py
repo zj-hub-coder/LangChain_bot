@@ -36,6 +36,9 @@ def init_llm() -> ChatOpenAI:
         model=s.llm_model,
         temperature=s.llm_temperature,
         max_tokens=s.llm_max_tokens,
+        # 流式时回传 token 用量，供飞书卡片直接统计，无需额外一次阻塞调用
+        # （DashScope 兼容端点已验证支持 include_usage）
+        stream_usage=True,
     )
 
 

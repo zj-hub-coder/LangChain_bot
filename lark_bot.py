@@ -31,6 +31,19 @@ logger = logging.getLogger(__name__)
 CARD_TITLE = "🔍 K8s 运维助手"
 
 
+def _extract_total_tokens(usage_metadata) -> int:
+    """从 usage_metadata 中提取总 token 数，缺失时返回 0。"""
+    if not usage_metadata:
+        return 0
+    total = usage_metadata.get("total_tokens")
+    if total:
+        return int(total)
+    # 部分接口不返回 total_tokens，退化为 input + output 求和
+    return int(usage_metadata.get("input_tokens", 0) or 0) + int(
+        usage_metadata.get("output_tokens", 0) or 0
+    )
+
+
 class LarkBot:
     """飞书机器人交互层：消息去重 + 流式卡片 + 三级降级"""
 
@@ -75,6 +88,7 @@ class LarkBot:
             return
 
         accumulated_text = ""
+        total_tokens = 0
         last_update_time = 0.0
         start = time.time()
         agent = await self._ensure_agent()
@@ -86,6 +100,14 @@ class LarkBot:
                 config={"configurable": {"thread_id": thread_id}},
                 version="v2",
             ):
+                if event["event"] == "on_chat_model_end":
+                    # 从流式结束事件累加 token 用量，无需额外发起一次空消息调用
+                    output = event["data"].get("output")
+                    total_tokens += _extract_total_tokens(
+                        getattr(output, "usage_metadata", None)
+                    )
+                    continue
+
                 if event["event"] != "on_chat_model_stream":
                     continue
 
@@ -110,18 +132,6 @@ class LarkBot:
                     placeholder_msg_id=placeholder_msg_id,
                 )
                 return
-
-            # 取最终 token 用量
-            final_state = await agent.ainvoke(
-                {"messages": [HumanMessage(content="")]},
-                config={"configurable": {"thread_id": thread_id}},
-            )
-            total_tokens = 0
-            messages = final_state.get("messages", [])
-            if messages:
-                last_msg = messages[-1]
-                usage = getattr(last_msg, "usage_metadata", None) or {}
-                total_tokens = usage.get("total_tokens", 0)
 
             self._update_card_final(
                 placeholder_msg_id, accumulated_text,
