@@ -19,6 +19,7 @@ from langchain_openai import ChatOpenAI
 from langgraph.checkpoint.memory import MemorySaver
 
 from config import get_mcp_servers, get_settings
+from loop_guard import LoopGuardMiddleware
 from prompts import SYSTEM_PROMPT
 from tools import get_builtin_tools
 
@@ -65,9 +66,12 @@ async def build_agent():
     tools = list(mcp_tools) + get_builtin_tools()
     if not tools:
         print("警告：未装配任何工具，Agent 将仅依赖模型自身能力作答。")
+    settings = get_settings()
     return create_agent(
         llm,
         tools=tools,
         system_prompt=SYSTEM_PROMPT,
         checkpointer=MemorySaver(),
+        # ReAct 死循环防护：最大工具轮数 + 连续重复调用检测
+        middleware=[LoopGuardMiddleware(max_tool_rounds=settings.max_tool_rounds)],
     )

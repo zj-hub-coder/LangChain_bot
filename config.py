@@ -33,6 +33,11 @@ class Settings(BaseSettings):
     # === 搜索工具 ===
     search_provider: str = Field(default="duckduckgo", description="搜索工具提供商")
 
+    # === Agent 循环控制 ===
+    max_tool_rounds: int = Field(
+        default=8, description="ReAct 最大工具调用轮数（防死循环）"
+    )
+
     # === 飞书机器人（可选，仅 start_lark.py 需要）===
     lark_app_id: str = Field(default="", description="飞书 App ID")
     lark_app_secret: str = Field(default="", description="飞书 App Secret")
