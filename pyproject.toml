@@ -17,5 +17,19 @@ dependencies = [
 # 安装后可直接 `k8s-ops-agent` 启动 CLI
 k8s-ops-agent = "cli:chat_sync"
 
+[project.optional-dependencies]
+# 评估与门禁开发依赖
+dev = [
+    "pytest>=8.0",
+]
+# 自托管 Langfuse 可观测后端（不配 LANGFUSE_ENABLED 时无需安装）
+observability = [
+    "langfuse>=3.0",
+]
+
 [tool.setuptools]
-packages = ["tools"]
+packages = ["tools", "evals", "observability", "experiences"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-q"

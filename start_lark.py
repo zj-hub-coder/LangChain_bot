@@ -16,8 +16,13 @@ import threading
 
 import lark_oapi as lark
 from lark_oapi.api.im.v1 import P2ImMessageReceiveV1
+from lark_oapi.event.callback.model.p2_card_action_trigger import (
+    P2CardActionTrigger,
+    P2CardActionTriggerResponse,
+)
 
 from config import get_settings
+from feedback_store import append_feedback
 from lark_bot import LarkBot
 from session_manager import SessionManager
 
@@ -88,11 +93,51 @@ def _run_async(coro_func, *args):
 
 
 # ============================================================
-# 3. 事件处理器 & WebSocket 客户端
+# 3. 卡片按钮回调（👍/👎 反馈回流 → feedback/feedback-*.jsonl）
+# ============================================================
+def do_p2_card_action_trigger(data: P2CardActionTrigger) -> P2CardActionTriggerResponse:
+    """记录用户对回答的反馈，凭 run_id 与 traces 双向回连。"""
+    try:
+        value = data.event.action.value or {}
+        if isinstance(value, str):  # 兼容 SDK 未解析的形态
+            value = json.loads(value)
+        if value.get("action") != "feedback":
+            return P2CardActionTriggerResponse({})
+
+        operator = getattr(data.event, "operator", None)
+        append_feedback({
+            "feedback": value.get("feedback"),
+            "run_id": value.get("run_id"),
+            "thread_id": value.get("thread_id"),
+            "question": value.get("question"),
+            "user_id": getattr(operator, "open_id", None) if operator else None,
+            "chat_id": getattr(data.event.context, "open_chat_id", None)
+            if getattr(data.event, "context", None) else None,
+            "message_id": getattr(data.event.context, "open_message_id", None)
+            if getattr(data.event, "context", None) else None,
+        })
+        is_down = value.get("feedback") == "down"
+        toast = (
+            "已记录问题反馈，我们会据此改进 🙏"
+            if is_down else "感谢认可 👍"
+        )
+        return P2CardActionTriggerResponse({
+            "toast": {"type": "success", "content": toast},
+        })
+    except Exception:
+        logger.exception("处理卡片反馈回调失败")
+        return P2CardActionTriggerResponse({
+            "toast": {"type": "error", "content": "反馈记录失败，请稍后重试"},
+        })
+
+
+# ============================================================
+# 4. 事件处理器 & WebSocket 客户端
 # ============================================================
 event_handler = (
     lark.EventDispatcherHandler.builder("", "")
     .register_p2_im_message_receive_v1(do_p2_im_message_receive_v1)
+    .register_p2_card_action_trigger(do_p2_card_action_trigger)
     .build()
 )
 

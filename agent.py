@@ -19,9 +19,16 @@ from langchain_openai import ChatOpenAI
 from langgraph.checkpoint.memory import MemorySaver
 
 from config import get_mcp_servers, get_settings
+from experiences import render_active_experiences
 from loop_guard import LoopGuardMiddleware
 from prompts import SYSTEM_PROMPT
 from tools import get_builtin_tools
+
+
+def _compose_system_prompt() -> str:
+    """系统提示词 = 基础规范 + 已验证经验库（经验仅在匹配场景生效）。"""
+    exp_block = render_active_experiences()
+    return f"{SYSTEM_PROMPT}\n\n{exp_block}" if exp_block else SYSTEM_PROMPT
 
 
 def init_llm() -> ChatOpenAI:
@@ -70,7 +77,7 @@ async def build_agent():
     return create_agent(
         llm,
         tools=tools,
-        system_prompt=SYSTEM_PROMPT,
+        system_prompt=_compose_system_prompt(),
         checkpointer=MemorySaver(),
         # ReAct 死循环防护：最大工具轮数 + 连续重复调用检测
         middleware=[LoopGuardMiddleware(max_tool_rounds=settings.max_tool_rounds)],

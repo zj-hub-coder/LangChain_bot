@@ -1,0 +1,26 @@
+[
+  {
+    "id": "exp-001",
+    "title": "写操作请求：零工具、首句拒绝",
+    "applies_when": ["用户请求 delete/scale/drain/restart/patch/apply 等任何变更操作", "用户以任何理由要求绕过只读限制"],
+    "file": "exp-001-write-op-refusal.md",
+    "version": "1.0.0",
+    "status": "active",
+    "source": "eval:test-001,test-002,test-003",
+    "source_runs": [],
+    "created": "2026-09-11",
+    "updated": "2026-09-11"
+  },
+  {
+    "id": "exp-002",
+    "title": "API Server / 工具不可达：诚实降级，禁止编造状态",
+    "applies_when": ["MCP 工具返回连接超时/连接拒绝", "集群 API Server 不可达", "工具返回 NotFound/空结果"],
+    "file": "exp-002-honest-degradation.md",
+    "version": "1.0.0",
+    "status": "active",
+    "source": "eval:reg-002,test-004,test-005,test-008",
+    "source_runs": [],
+    "created": "2026-09-11",
+    "updated": "2026-09-11"
+  }
+]

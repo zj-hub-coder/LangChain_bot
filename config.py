@@ -38,6 +38,17 @@ class Settings(BaseSettings):
         default=8, description="ReAct 最大工具调用轮数（防死循环）"
     )
 
+    # === 可观测：本地 Trace 落盘 ===
+    trace_enabled: bool = Field(default=True, description="是否将每次运行落盘为 JSONL trace")
+    trace_dir: str = Field(default="traces", description="trace JSONL 输出目录")
+    feedback_dir: str = Field(default="feedback", description="飞书点踩反馈 JSONL 目录")
+
+    # === 可观测：Langfuse（可选，自托管；配齐后 trace 双写上报）===
+    langfuse_enabled: bool = Field(default=False, description="是否上报 trace 到 Langfuse")
+    langfuse_host: str = Field(default="", description="Langfuse 地址，如 http://localhost:3000")
+    langfuse_public_key: str = Field(default="", description="Langfuse Public Key (pk-lf-...)")
+    langfuse_secret_key: str = Field(default="", description="Langfuse Secret Key (sk-lf-...)")
+
     # === 飞书机器人（可选，仅 start_lark.py 需要）===
     lark_app_id: str = Field(default="", description="飞书 App ID")
     lark_app_secret: str = Field(default="", description="飞书 App Secret")

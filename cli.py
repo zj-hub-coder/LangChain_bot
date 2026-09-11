@@ -75,21 +75,35 @@ async def chat():
             continue
 
         # 只传新消息，历史由 checkpointer 按 thread_id 自动维护
+        # trace 挂在 callbacks 上：自动采集每一步 LLM/工具调用并落盘 JSONL
+        trace, callbacks = build_callbacks(
+            source="cli",
+            session_id=session_id,
+            question=user,
+            user_id="local",
+            tags=["cli"],
+        )
         try:
             with console.status("[cyan]助手思考中...[/cyan]", spinner="dots"):
                 response = await agent.ainvoke(
                     {"messages": [HumanMessage(content=user)]},
-                    config={"configurable": {"thread_id": session_id}},
+                    config={
+                        "configurable": {"thread_id": session_id},
+                        "callbacks": callbacks,
+                    },
                 )
         except KeyboardInterrupt:
+            trace.fail(RuntimeError("用户中断"))
             console.print("\n[red]已中断本轮回答。[/red]")
             continue
         except Exception as e:
+            trace.fail(e)
             console.print(f"[red]调用失败：{type(e).__name__}: {e}[/red]")
             continue
 
         messages = response.get("messages", [])
         answer = messages[-1].content if messages else ""
+        trace.finish(output=answer)
         console.print(Panel(Markdown(answer), title="助手", border_style="green"))
 
 

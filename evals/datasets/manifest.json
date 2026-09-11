@@ -1,0 +1,47 @@
+{
+  "version": "20260911024513",
+  "created_at": "2026-09-11T02:45:13.934392+00:00",
+  "datasets": {
+    "baseline": {
+      "file": "baseline.jsonl",
+      "count": 10,
+      "sha256": "12482e77a82dd176c7ebd109773f9f77fac88b51c82818207011fb6dd0ccc021",
+      "ids": [
+        "base-001",
+        "base-002",
+        "base-003",
+        "base-004",
+        "base-005",
+        "base-006",
+        "base-007",
+        "base-008",
+        "base-009",
+        "base-010"
+      ]
+    },
+    "test": {
+      "file": "test.jsonl",
+      "count": 8,
+      "sha256": "fdefc0b3832e0dbbc28e1b7cda6f65e179df0ad8408b8c0ba0efc3ef4c2da5f9",
+      "ids": [
+        "test-001",
+        "test-002",
+        "test-003",
+        "test-004",
+        "test-005",
+        "test-006",
+        "test-007",
+        "test-008"
+      ]
+    },
+    "regression": {
+      "file": "regression.jsonl",
+      "count": 2,
+      "sha256": "4de0f427ffac865d95233e805ba0207dc7e118e65e9adb52aed91de2c6583ce0",
+      "ids": [
+        "reg-001",
+        "reg-002"
+      ]
+    }
+  }
+}

@@ -94,10 +94,23 @@ class LarkBot:
         agent = await self._ensure_agent()
         settings = get_settings()
 
+        # 统一 Trace：自动记录流式过程中的 LLM/工具 step 并落盘
+        trace, callbacks = build_callbacks(
+            source="lark",
+            session_id=thread_id,
+            question=question,
+            user_id=user_id,
+            tags=["lark", "streaming"],
+            mode="streaming",
+        )
+
         try:
             async for event in agent.astream_events(
                 {"messages": [HumanMessage(content=question)]},
-                config={"configurable": {"thread_id": thread_id}},
+                config={
+                    "configurable": {"thread_id": thread_id},
+                    "callbacks": callbacks,
+                },
                 version="v2",
             ):
                 if event["event"] == "on_chat_model_end":
@@ -127,6 +140,7 @@ class LarkBot:
 
             if not accumulated_text:
                 logger.warning("流式返回为空，降级 blocking user=%s", user_id)
+                trace.finish(output="", status="degraded_empty_stream")
                 await self._fallback_blocking(
                     msg_id, user_id, question, thread_id,
                     placeholder_msg_id=placeholder_msg_id,
@@ -138,7 +152,9 @@ class LarkBot:
                 model=settings.llm_model,
                 latency_ms=latency_ms,
                 total_tokens=total_tokens,
+                feedback=self._feedback_payload(trace, thread_id, question),
             )
+            trace.finish(output=accumulated_text)
             logger.info(
                 "回复完成 user=%s chars=%d latency=%dms tokens=%d",
                 user_id, len(accumulated_text), latency_ms, total_tokens,
@@ -154,7 +170,10 @@ class LarkBot:
                     latency_ms=latency_ms,
                     total_tokens=0,
                 )
+                # 已产出部分内容：标记降级成功而非纯失败
+                trace.fail(e, output=accumulated_text)
             else:
+                trace.fail(e)
                 await self._fallback_blocking(
                     msg_id, user_id, question, thread_id,
                     placeholder_msg_id=placeholder_msg_id, error=e,
@@ -184,18 +203,30 @@ class LarkBot:
         placeholder_msg_id=None, error=None,
     ):
         """降级：blocking 一次性获取完整响应；再失败则文本降级。"""
+        trace, callbacks = build_callbacks(
+            source="lark",
+            session_id=thread_id,
+            question=question,
+            user_id=user_id,
+            tags=["lark", "blocking_fallback"],
+            mode="blocking_fallback",
+        )
         try:
             agent = await self._ensure_agent()
             start = time.time()
             result = await agent.ainvoke(
                 {"messages": [HumanMessage(content=question)]},
-                config={"configurable": {"thread_id": thread_id}},
+                config={
+                    "configurable": {"thread_id": thread_id},
+                    "callbacks": callbacks,
+                },
             )
             latency_ms = int((time.time() - start) * 1000)
             messages = result.get("messages", [])
             answer = messages[-1].content if messages else "（无内容）"
             usage = getattr(messages[-1], "usage_metadata", None) or {} if messages else {}
             total_tokens = usage.get("total_tokens", 0)
+            trace.finish(output=answer, status="success_fallback")
 
             if placeholder_msg_id:
                 self._update_card_final(
@@ -203,11 +234,14 @@ class LarkBot:
                     model=get_settings().llm_model,
                     latency_ms=latency_ms,
                     total_tokens=total_tokens,
+                    feedback=self._feedback_payload(trace, thread_id, question),
                 )
             else:
-                self._reply_card(msg_id, answer, latency_ms, total_tokens)
+                self._reply_card(msg_id, answer, latency_ms, total_tokens,
+                                 feedback=self._feedback_payload(trace, thread_id, question))
         except Exception as e:
             logger.exception("blocking 降级也失败")
+            trace.fail(e)
             tip = f"⚠️ AI 服务不可用：{str(e)[:200]}"
             if placeholder_msg_id:
                 self._update_card_final(
@@ -324,11 +358,13 @@ class LarkBot:
     def _build_card(
         self, content: str, is_streaming: bool,
         model: str = "", latency_ms: int = 0, total_tokens: int = 0,
+        feedback: dict | None = None,
     ) -> dict:
         """构建飞书交互卡片。
 
         is_streaming=True  → 流式态（浅蓝色 wathet 标题）
         is_streaming=False → 最终态（蓝色 blue 标题 + 信息来源 + 调用指标注脚）
+        feedback 非空时，最终态追加 👍/👎 按钮（点击回流到 feedback 数据集）
         """
         header_color = "wathet" if is_streaming else "blue"
         elements: list[dict] = [
@@ -354,6 +390,32 @@ class LarkBot:
                 "tag": "note",
                 "elements": [{"tag": "plain_text", "content": metrics_note}],
             })
+            if feedback:
+                # 反馈回流：value 随按钮点击事件回传，凭 run_id 回连 trace
+                elements.append({"tag": "hr"})
+                elements.append({
+                    "tag": "action",
+                    "actions": [
+                        {
+                            "tag": "button",
+                            "text": {"tag": "plain_text", "content": "👍 回答准确"},
+                            "type": "primary",
+                            "value": json.dumps(
+                                {"action": "feedback", "feedback": "up", **feedback},
+                                ensure_ascii=False,
+                            ),
+                        },
+                        {
+                            "tag": "button",
+                            "text": {"tag": "plain_text", "content": "👎 回答有误"},
+                            "type": "danger",
+                            "value": json.dumps(
+                                {"action": "feedback", "feedback": "down", **feedback},
+                                ensure_ascii=False,
+                            ),
+                        },
+                    ],
+                })
 
         return {
             "config": {"wide_screen_mode": True},

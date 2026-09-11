@@ -18,3 +18,12 @@ venv/
 
 # 日志
 *.log
+
+# 运行时 Trace（可能含真实集群信息，不入库；评估数据集在 evals/datasets 单独管理）
+traces/
+
+# 飞书用户反馈原始数据（人工评审脱敏后才沉淀进 regression 集）
+feedback/
+
+# 评估报告（实验产物，本地留存对比；需要锚定的基线报告另行手动归档）
+evals/reports/
