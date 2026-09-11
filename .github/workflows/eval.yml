@@ -30,12 +30,28 @@ jobs:
       - name: 运行 RuleJudge 单测
         run: pytest tests/
 
+  secret-gate:
+    name: 检查 LLM API Key 是否配置
+    runs-on: ubuntu-latest
+    outputs:
+      has_key: ${{ steps.gate.outputs.has_key }}
+    steps:
+      - id: gate
+        env:
+          _KEY: ${{ secrets.OPENAI_API_KEY }}
+        run: |
+          if [ -n "$_KEY" ]; then
+            echo "has_key=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "has_key=false" >> "$GITHUB_OUTPUT"
+          fi
+
   agent-eval-offline:
     name: Agent 离线样本评估（质量门禁）
     runs-on: ubuntu-latest
-    needs: judge-unit
+    needs: [judge-unit, secret-gate]
     # 未配置 LLM API Key 时自动跳过（fork/公开仓库场景）
-    if: ${{ secrets.OPENAI_API_KEY != '' }}
+    if: ${{ needs.secret-gate.outputs.has_key == 'true' }}
     env:
       OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
       OPENAI_API_BASE: ${{ secrets.OPENAI_API_BASE }}
