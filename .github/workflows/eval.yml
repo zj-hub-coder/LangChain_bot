@@ -9,6 +9,8 @@ on:
   push:
     branches: [main]
   pull_request:
+  # 支持在 Actions 页面手动触发（Actions -> Agent Eval Gate -> Run workflow）
+  workflow_dispatch:
 
 jobs:
   judge-unit:
